@@ -183,7 +183,7 @@ class SettingsDialog(QDialog):
         about_text = QLabel(
             "<div style='text-align: center;'>"
             "<p style='font-size: 16px; font-weight: bold; color: #333; margin-bottom: 4px;'>"
-            "🎧 Real-Time Audio Translator</p>"
+            "Real-Time Audio Translator</p>"
             "<p style='font-size: 11px; color: #888; margin-bottom: 12px;'>Version 1.0</p>"
             "<p style='font-size: 12px; color: #4CAF50; font-weight: 500; margin-bottom: 12px;'>"
             "100% local • 100% free • 100% private</p>"
@@ -198,7 +198,7 @@ class SettingsDialog(QDialog):
             "<a href='mailto:l33tdawg@hitb.org' style='color: #2196F3;'>l33tdawg@hitb.org</a></p>"
             "<p style='font-size: 12px; margin-top: 8px;'>"
             "<a href='https://github.com/l33tdawg/caplator' style='color: #2196F3;'>"
-            "⭐ github.com/l33tdawg/caplator</a></p>"
+            "github.com/l33tdawg/caplator</a></p>"
             "</div>"
         )
         about_text.setOpenExternalLinks(True)

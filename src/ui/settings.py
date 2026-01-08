@@ -75,6 +75,16 @@ class SettingsDialog(QDialog):
         whisper_group = QGroupBox("Transcription (Whisper)")
         whisper_layout = QFormLayout(whisper_group)
 
+        self.whisper_backend = QComboBox()
+        self.whisper_backend.addItem("faster-whisper (Recommended)", "faster-whisper")
+        self.whisper_backend.addItem("MLX (Apple Silicon, experimental)", "mlx")
+        self.whisper_backend.setToolTip(
+            "faster-whisper: Works on all platforms, very stable\n"
+            "MLX: Optimized for Apple Silicon (M1/M2/M3/M4), may be faster but experimental"
+        )
+        self.whisper_backend.currentIndexChanged.connect(self._on_backend_changed)
+        whisper_layout.addRow("Backend:", self.whisper_backend)
+
         self.whisper_model = QComboBox()
         for model_id, label in self.WHISPER_MODELS:
             self.whisper_model.addItem(label, model_id)
@@ -83,6 +93,10 @@ class SettingsDialog(QDialog):
         self.device = QComboBox()
         self.device.addItems(["auto", "cpu", "cuda"])
         whisper_layout.addRow("Device:", self.device)
+        
+        self.whisper_status = QLabel("")
+        self.whisper_status.setStyleSheet("color: #888; font-size: 11px;")
+        whisper_layout.addRow("", self.whisper_status)
 
         layout.addWidget(whisper_group)
 
@@ -204,6 +218,28 @@ class SettingsDialog(QDialog):
             self.target_lang.setEnabled(True)
             self.target_lang.setToolTip("")
 
+    def _on_backend_changed(self, index):
+        """Handle Whisper backend change."""
+        backend = self.whisper_backend.currentData()
+        
+        if backend == "mlx":
+            # Check if MLX is available
+            try:
+                import mlx_whisper
+                self.whisper_status.setText("✓ MLX-Whisper available")
+                self.whisper_status.setStyleSheet("color: #4CAF50; font-size: 11px;")
+                # MLX doesn't support device selection
+                self.device.setEnabled(False)
+                self.device.setToolTip("MLX automatically uses Apple Silicon GPU")
+            except ImportError:
+                self.whisper_status.setText("⚠ MLX not installed. Run: pip install mlx-whisper")
+                self.whisper_status.setStyleSheet("color: #f44336; font-size: 11px;")
+                self.device.setEnabled(False)
+        else:
+            self.whisper_status.setText("")
+            self.device.setEnabled(True)
+            self.device.setToolTip("")
+
     def _refresh_ollama_models(self):
         """Fetch available models from Ollama server."""
         host = self.ollama_host.text() or "http://localhost:11434"
@@ -287,6 +323,13 @@ class SettingsDialog(QDialog):
         else:
             self.target_lang.setCurrentText(lang)
 
+        # Whisper backend
+        backend = self.config.get("whisper_backend", "faster-whisper")
+        idx = self.whisper_backend.findData(backend)
+        if idx >= 0:
+            self.whisper_backend.setCurrentIndex(idx)
+        self._on_backend_changed(0)  # Update UI state based on backend
+
         # Whisper model
         model = self.config.get("whisper_model", "small")
         idx = self.whisper_model.findData(model)
@@ -341,6 +384,7 @@ class SettingsDialog(QDialog):
         try:
             self.config.set("translation_mode", self.translation_mode.currentData())
             self.config.set("target_language", self.target_lang.currentText())
+            self.config.set("whisper_backend", self.whisper_backend.currentData())
             self.config.set("whisper_model", self.whisper_model.currentData())
             self.config.set("device", self.device.currentText())
             self.config.set("ollama_model", self.ollama_model.currentText() or "llama3.2")
@@ -371,6 +415,7 @@ class SettingsDialog(QDialog):
         try:
             self.config.set("translation_mode", self.translation_mode.currentData())
             self.config.set("target_language", self.target_lang.currentText())
+            self.config.set("whisper_backend", self.whisper_backend.currentData())
             self.config.set("whisper_model", self.whisper_model.currentData())
             self.config.set("device", self.device.currentText())
             self.config.set("ollama_model", self.ollama_model.currentText() or "llama3.2")

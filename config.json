@@ -12,15 +12,15 @@
     "silence_threshold": 100
   },
   "overlay": {
-    "opacity": 0.85,
-    "font_size": 18,
+    "opacity": 1.0,
+    "font_size": 24,
     "position": {
-      "x": 814,
-      "y": 563
+      "x": 892,
+      "y": 437
     },
     "size": {
-      "width": 1043,
-      "height": 397
+      "width": 600,
+      "height": 150
     }
   },
   "whisper_backend": "faster-whisper"

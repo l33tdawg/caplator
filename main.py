@@ -224,7 +224,22 @@ def main():
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
-    app.setApplicationName("Real-Time Translator")
+    app.setApplicationName("Translator")
+    app.setApplicationDisplayName("Real-Time Translator")
+    
+    # Set dock icon on macOS
+    try:
+        from AppKit import NSApplication, NSImage
+        icon_path = Path(__file__).parent / "assets" / "icon.icns"
+        if icon_path.exists():
+            ns_app = NSApplication.sharedApplication()
+            icon = NSImage.alloc().initWithContentsOfFile_(str(icon_path))
+            if icon:
+                ns_app.setApplicationIconImage_(icon)
+    except ImportError:
+        pass  # AppKit not available (not macOS or pyobjc not installed)
+    except Exception:
+        pass  # Icon setting failed, continue anyway
 
     # Handle Ctrl+C
     signal.signal(signal.SIGINT, signal.SIG_DFL)

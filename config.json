@@ -2,7 +2,7 @@
   "translation_mode": "ollama",
   "target_language": "English",
   "whisper_model": "small",
-  "ollama_model": "llama3:latest",
+  "ollama_model": "llama3.2:latest",
   "ollama_host": "http://localhost:11434",
   "device": "auto",
   "audio_device": null,
@@ -15,12 +15,12 @@
     "opacity": 0.85,
     "font_size": 18,
     "position": {
-      "x": 628,
-      "y": 620
+      "x": 459,
+      "y": 727
     },
     "size": {
-      "width": 800,
-      "height": 200
+      "width": 1043,
+      "height": 397
     }
   },
   "whisper_backend": "faster-whisper"

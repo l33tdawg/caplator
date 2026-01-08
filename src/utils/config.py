@@ -11,6 +11,7 @@ class Config:
 
     DEFAULT_CONFIG = {
         # Translation settings
+        "translation_mode": "auto",  # transcribe_only, ollama, auto
         "target_language": "English",
         "whisper_model": "small",  # tiny, base, small, medium, large-v3
         "ollama_model": "llama3.2",

@@ -14,7 +14,7 @@ import threading
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QDialog
 from PyQt6.QtCore import Qt
 
 # Add src to path
@@ -68,14 +68,17 @@ class TranslatorApp:
                 ollama_model=self.config.get("ollama_model", "llama3.2"),
                 ollama_host=self.config.get("ollama_host", "http://localhost:11434"),
                 device=self.config.get("device", "auto"),
+                translation_mode=self.config.get("translation_mode", "auto"),
             )
 
-            # Check Ollama is running
-            self.overlay.set_text_immediate("Checking Ollama...")
-            ok, msg = self.translator.check_ollama()
-            if not ok:
-                self.overlay.set_text_immediate(f"⚠️ {msg}")
-                return False
+            # Check Ollama is running (only if we need it)
+            translation_mode = self.config.get("translation_mode", "auto")
+            if translation_mode != "transcribe_only":
+                self.overlay.set_text_immediate("Checking Ollama...")
+                ok, msg = self.translator.check_ollama()
+                if not ok:
+                    self.overlay.set_text_immediate(f"⚠️ {msg}")
+                    return False
 
             return True
 
@@ -108,31 +111,50 @@ class TranslatorApp:
 
     def _show_settings(self):
         """Show settings dialog."""
-        dialog = SettingsDialog(self.config)
+        # Pass overlay as parent so dialog closing doesn't quit the app
+        dialog = SettingsDialog(self.config, parent=self.overlay)
         dialog.settings_saved.connect(self._on_settings_changed)
-        dialog.exec()
+        result = dialog.exec()
+        
+        # If dialog was accepted (OK clicked), ensure settings are applied
+        if result == QDialog.DialogCode.Accepted:
+            self._on_settings_changed()
 
     def _on_settings_changed(self):
         """Handle settings change."""
         try:
-            # Reload config from file
-            self.config = Config()
-            self.overlay.apply_settings(self.config)
-
-            # Reinitialize translator with new settings
+            # Stop if running
             was_running = self.is_running
             if was_running:
                 self.stop()
+
+            # Reload config from file
+            self.config = Config()
             
+            # Apply visual settings to overlay immediately
+            self.overlay.apply_settings(self.config)
+
+            # Recreate audio capture with new settings
+            self.audio_capture = AudioCapture(
+                sample_rate=self.config.get("audio.sample_rate", 44100),
+                chunk_duration=self.config.get("audio.chunk_duration", 2.0),
+                device_name=self.config.get("audio_device"),
+                silence_threshold=self.config.get("audio.silence_threshold", 100),
+            )
+            self.audio_capture.audio_ready.connect(self._on_audio_ready)
+
             # Reset translator to pick up new settings
             self.translator = None
-            
+
+            # Restart if it was running
             if was_running:
                 self.start()
+                
         except Exception as e:
             print(f"Error applying settings: {e}")
             import traceback
             traceback.print_exc()
+            self.overlay.set_text_immediate(f"⚠️ Settings error: {str(e)[:50]}")
 
     def start(self):
         """Start translation."""

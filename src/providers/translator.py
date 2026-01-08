@@ -42,6 +42,7 @@ class Translator(BaseProvider):
         ollama_host: str = "http://localhost:11434",
         device: str = "auto",
         compute_type: str = "auto",
+        translation_mode: str = "auto",  # transcribe_only, ollama, auto
     ):
         """Initialize the translator.
 
@@ -56,6 +57,10 @@ class Translator(BaseProvider):
             ollama_host: Ollama server URL
             device: Compute device (auto, cpu, cuda)
             compute_type: Precision (auto, int8, float16, float32)
+            translation_mode: How to handle translation
+                            - transcribe_only: Just transcribe, no translation
+                            - ollama: Always use Ollama for translation
+                            - auto: Use Whisper for English, Ollama for others
         """
         super().__init__(target_language)
 
@@ -65,6 +70,7 @@ class Translator(BaseProvider):
         self.ollama_host = ollama_host
         self.device = device
         self.compute_type = compute_type
+        self.translation_mode = translation_mode
 
         # Lazy-loaded models
         self._whisper = None
@@ -192,9 +198,19 @@ class Translator(BaseProvider):
                 wav_path = f.name
 
             try:
-                # Use Whisper's built-in translation if target is English
-                use_whisper_translate = self.target_language.lower() in ["en", "english"]
-                task = "translate" if use_whisper_translate else "transcribe"
+                # Determine task based on translation mode
+                if self.translation_mode == "transcribe_only":
+                    # Always transcribe in transcribe-only mode
+                    task = "transcribe"
+                    use_whisper_translate = False
+                elif self.translation_mode == "auto":
+                    # Use Whisper's built-in translation if target is English
+                    use_whisper_translate = self.target_language.lower() in ["en", "english"]
+                    task = "translate" if use_whisper_translate else "transcribe"
+                else:
+                    # Ollama mode: always transcribe first, then translate with Ollama
+                    task = "transcribe"
+                    use_whisper_translate = False
                 
                 whisper_data = self.whisper
                 
@@ -327,11 +343,15 @@ Translation:"""
             source_sample_rate: Sample rate of input audio (default 44100)
 
         Returns:
-            Translated text
+            Translated text (or just transcription if in transcribe_only mode)
         """
         transcription = self.transcribe(audio_data, source_sample_rate)
         if not transcription:
             return ""
+        
+        # Transcription-only mode: no translation
+        if self.translation_mode == "transcribe_only":
+            return transcription
         
         # Skip Ollama if Whisper already translated to English (much faster!)
         if getattr(self, '_whisper_translated', False):

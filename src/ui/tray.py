@@ -149,7 +149,8 @@ class SystemTray(QObject):
 
     def _show_settings(self):
         """Show the settings dialog."""
-        dialog = SettingsDialog(self.config)
+        # Pass overlay as parent so dialog closing doesn't quit the app
+        dialog = SettingsDialog(self.config, parent=self.overlay)
         dialog.settings_saved.connect(self.settings_changed.emit)
         dialog.exec()
 

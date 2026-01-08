@@ -268,14 +268,18 @@ class Translator(BaseProvider):
             # Use last few transcriptions as context hint
             initial_prompt = " ".join(self._context_buffer[-self._max_context:])
         
+        # First try with VAD filter
         segments, info = model.transcribe(
             wav_path,
             beam_size=1,
             best_of=1,
             vad_filter=True,  # Enable VAD to filter music/noise
             vad_parameters=dict(
-                min_silence_duration_ms=500,
-                speech_pad_ms=200,
+                threshold=0.3,  # Lower threshold = less aggressive filtering (default 0.5)
+                min_speech_duration_ms=100,  # Shorter minimum speech duration
+                min_silence_duration_ms=300,  # Shorter silence to keep more context
+                speech_pad_ms=400,  # More padding around detected speech
+                max_speech_duration_s=30,  # Allow longer speech segments
             ),
             task=task,
             without_timestamps=True,
@@ -286,14 +290,28 @@ class Translator(BaseProvider):
         # Collect segments and check for hallucinations
         segment_list = list(segments)
         
+        # If VAD removed everything, retry without VAD (VAD might be too aggressive)
+        if not segment_list:
+            segments_retry, info = model.transcribe(
+                wav_path,
+                beam_size=1,
+                best_of=1,
+                vad_filter=False,  # Disable VAD for retry
+                task=task,
+                without_timestamps=True,
+                initial_prompt=initial_prompt,
+                condition_on_previous_text=False,
+            )
+            segment_list = list(segments_retry)
+        
         # Filter out low-confidence segments (likely hallucinations)
         valid_segments = []
         for seg in segment_list:
-            # Skip if no_speech_prob is too high (likely music/noise)
-            if hasattr(seg, 'no_speech_prob') and seg.no_speech_prob > 0.5:
+            # Skip if no_speech_prob is very high (likely pure noise)
+            if hasattr(seg, 'no_speech_prob') and seg.no_speech_prob > 0.7:
                 continue
-            # Skip if avg_logprob is too low (hallucination indicator)
-            if hasattr(seg, 'avg_logprob') and seg.avg_logprob < -1.0:
+            # Skip if avg_logprob is extremely low (strong hallucination indicator)
+            if hasattr(seg, 'avg_logprob') and seg.avg_logprob < -1.5:
                 continue
             valid_segments.append(seg)
         
@@ -318,8 +336,16 @@ class Translator(BaseProvider):
         """Detect common Whisper hallucination patterns."""
         text_lower = text.lower().strip()
         
-        # Common hallucination phrases
-        hallucination_patterns = [
+        # Exact match hallucinations (very short meaningless outputs)
+        exact_hallucinations = {
+            "you", "the", "and", "...", ".", "..", "a", "i", "it", "is",
+            "um", "uh", "ah", "oh", "eh", "hmm", "hm", "mhm",
+        }
+        if text_lower in exact_hallucinations:
+            return True
+        
+        # Common hallucination phrases (YouTube-style endings, etc.)
+        hallucination_phrases = [
             "thank you for watching",
             "thanks for watching",
             "please subscribe",
@@ -334,30 +360,30 @@ class Translator(BaseProvider):
             "please provide the text",
             "i'll translate",
             "here's the translation",
-            "translation:",
-            "...",  # Just ellipsis
-            "you",  # Single word hallucinations
-            "the",
-            "and",
-            "music",
-            "♪",
+            "subtitles by",
+            "captions by",
         ]
         
-        for pattern in hallucination_patterns:
+        for pattern in hallucination_phrases:
             if pattern in text_lower:
                 return True
         
-        # Check for very short or repetitive text
-        if len(text_lower) < 4:
+        # Check for very short text (less than 3 chars after stripping)
+        if len(text_lower) < 3:
             return True
         
-        # Check for repeated characters/words (e.g., "......")
-        if len(set(text_lower.replace(" ", ""))) < 3:
+        # Check for repeated characters only (e.g., "......" or "aaaaa")
+        unique_chars = set(text_lower.replace(" ", ""))
+        if len(unique_chars) < 2:
             return True
         
-        # Check if text is mostly punctuation
+        # Check if text is mostly punctuation/symbols (less than 20% alphabetic)
         alpha_count = sum(1 for c in text if c.isalpha())
-        if alpha_count < len(text) * 0.3:
+        if len(text) > 0 and alpha_count < len(text) * 0.2:
+            return True
+        
+        # Music notation hallucinations
+        if text_lower.strip() in ["♪", "♪♪", "♪ ♪", "[music]", "(music)", "music playing"]:
             return True
         
         return False

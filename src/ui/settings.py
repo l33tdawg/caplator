@@ -13,6 +13,8 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QLineEdit,
     QMessageBox,
+    QScrollArea,
+    QWidget,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -49,9 +51,19 @@ class SettingsDialog(QDialog):
     def _setup_ui(self):
         """Build the UI."""
         self.setWindowTitle("Settings")
-        self.setMinimumWidth(450)
+        self.setMinimumWidth(480)
+        self.setMinimumHeight(600)
 
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        
+        # Create scroll area for all settings
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        
+        scroll_content = QWidget()
+        layout = QVBoxLayout(scroll_content)
+        layout.setContentsMargins(0, 0, 10, 0)  # Right margin for scrollbar
 
         # Translation settings
         trans_group = QGroupBox("Translation")
@@ -183,8 +195,13 @@ class SettingsDialog(QDialog):
         about_layout.addWidget(about_text)
         
         layout.addWidget(about_group)
+        layout.addStretch()
+        
+        # Finish scroll area
+        scroll.setWidget(scroll_content)
+        main_layout.addWidget(scroll)
 
-        # Buttons
+        # Buttons (outside scroll area)
         buttons = QHBoxLayout()
         buttons.addStretch()
 
@@ -202,7 +219,7 @@ class SettingsDialog(QDialog):
         ok_btn.clicked.connect(self._save_and_close)
         buttons.addWidget(ok_btn)
 
-        layout.addLayout(buttons)
+        main_layout.addLayout(buttons)
 
     def _populate_audio_devices(self):
         """List available audio input devices."""

@@ -178,20 +178,33 @@ class SettingsDialog(QDialog):
         # About section
         about_group = QGroupBox("About")
         about_layout = QVBoxLayout(about_group)
+        about_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         about_text = QLabel(
-            "<b>Real-Time Audio Translator</b> v1.0<br><br>"
-            "100% local, 100% free, 100% private.<br><br>"
-            "Captures system audio, transcribes using Whisper, "
-            "and translates with Ollama - all running locally on your machine.<br><br>"
-            "<b>Created by:</b><br>"
-            "Dhillon 'l33tdawg' Kannabhiran<br>"
-            "<a href='mailto:l33tdawg@hitb.org'>l33tdawg@hitb.org</a><br><br>"
-            "<a href='https://github.com/l33tdawg/caplator'>github.com/l33tdawg/caplator</a>"
+            "<div style='text-align: center;'>"
+            "<p style='font-size: 16px; font-weight: bold; color: #333; margin-bottom: 4px;'>"
+            "🎧 Real-Time Audio Translator</p>"
+            "<p style='font-size: 11px; color: #888; margin-bottom: 12px;'>Version 1.0</p>"
+            "<p style='font-size: 12px; color: #4CAF50; font-weight: 500; margin-bottom: 12px;'>"
+            "100% local • 100% free • 100% private</p>"
+            "<p style='font-size: 11px; color: #666; margin-bottom: 16px;'>"
+            "Captures system audio, transcribes using Whisper,<br>"
+            "and translates with Ollama — all running locally.</p>"
+            "<hr style='border: none; border-top: 1px solid #ddd; margin: 12px 0;'>"
+            "<p style='font-size: 11px; color: #888; margin-bottom: 4px;'>Created by</p>"
+            "<p style='font-size: 13px; color: #333; font-weight: 500;'>"
+            "Dhillon 'l33tdawg' Kannabhiran</p>"
+            "<p style='font-size: 12px;'>"
+            "<a href='mailto:l33tdawg@hitb.org' style='color: #2196F3;'>l33tdawg@hitb.org</a></p>"
+            "<p style='font-size: 12px; margin-top: 8px;'>"
+            "<a href='https://github.com/l33tdawg/caplator' style='color: #2196F3;'>"
+            "⭐ github.com/l33tdawg/caplator</a></p>"
+            "</div>"
         )
         about_text.setOpenExternalLinks(True)
         about_text.setWordWrap(True)
-        about_text.setStyleSheet("color: #aaa; font-size: 12px; padding: 8px;")
+        about_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        about_text.setStyleSheet("padding: 16px;")
         about_layout.addWidget(about_text)
         
         layout.addWidget(about_group)

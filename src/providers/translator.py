@@ -272,25 +272,95 @@ class Translator(BaseProvider):
             wav_path,
             beam_size=1,
             best_of=1,
-            vad_filter=False,
+            vad_filter=True,  # Enable VAD to filter music/noise
+            vad_parameters=dict(
+                min_silence_duration_ms=500,
+                speech_pad_ms=200,
+            ),
             task=task,
             without_timestamps=True,
-            initial_prompt=initial_prompt,  # Provide context!
-            condition_on_previous_text=False,  # Avoid hallucinations
+            initial_prompt=initial_prompt,
+            condition_on_previous_text=False,
         )
         
-        text = " ".join(seg.text for seg in segments).strip()
+        # Collect segments and check for hallucinations
+        segment_list = list(segments)
+        
+        # Filter out low-confidence segments (likely hallucinations)
+        valid_segments = []
+        for seg in segment_list:
+            # Skip if no_speech_prob is too high (likely music/noise)
+            if hasattr(seg, 'no_speech_prob') and seg.no_speech_prob > 0.5:
+                continue
+            # Skip if avg_logprob is too low (hallucination indicator)
+            if hasattr(seg, 'avg_logprob') and seg.avg_logprob < -1.0:
+                continue
+            valid_segments.append(seg)
+        
+        text = " ".join(seg.text for seg in valid_segments).strip()
+        
+        # Check for common hallucination patterns
+        if text and self._is_hallucination(text):
+            text = ""
         
         # Store language confidence
         self._language_confidence = info.language_probability
         
-        # Update context buffer
-        if text:
+        # Update context buffer only with valid speech
+        if text and len(text) > 3:  # Minimum length check
             self._context_buffer.append(text)
             if len(self._context_buffer) > self._max_context * 2:
                 self._context_buffer = self._context_buffer[-self._max_context:]
         
         return text, info.language
+    
+    def _is_hallucination(self, text: str) -> bool:
+        """Detect common Whisper hallucination patterns."""
+        text_lower = text.lower().strip()
+        
+        # Common hallucination phrases
+        hallucination_patterns = [
+            "thank you for watching",
+            "thanks for watching",
+            "please subscribe",
+            "like and subscribe",
+            "see you next time",
+            "don't forget to",
+            "click the bell",
+            "leave a comment",
+            "check out my",
+            "link in the description",
+            "i'm ready to translate",
+            "please provide the text",
+            "i'll translate",
+            "here's the translation",
+            "translation:",
+            "...",  # Just ellipsis
+            "you",  # Single word hallucinations
+            "the",
+            "and",
+            "music",
+            "♪",
+        ]
+        
+        for pattern in hallucination_patterns:
+            if pattern in text_lower:
+                return True
+        
+        # Check for very short or repetitive text
+        if len(text_lower) < 4:
+            return True
+        
+        # Check for repeated characters/words (e.g., "......")
+        if len(set(text_lower.replace(" ", ""))) < 3:
+            return True
+        
+        # Check if text is mostly punctuation
+        alpha_count = sum(1 for c in text if c.isalpha())
+        if alpha_count < len(text) * 0.3:
+            return True
+        
+        return False
 
     def translate(self, text: str) -> str:
         """Translate text to target language using Ollama.
@@ -311,16 +381,21 @@ class Translator(BaseProvider):
         if source == target_code:
             return text
 
+        # Skip translation if text looks like noise/hallucination
+        if self._is_hallucination(text):
+            return ""
+        
         try:
             # Build translation prompt
-            prompt = f"""Translate the following text to {self.target_language}.
+            prompt = f"""Translate the following speech to {self.target_language}.
 
 RULES:
-- Output ONLY the translation, nothing else
+- Output ONLY the direct translation, nothing else
+- If the text is nonsensical, unclear, or just music/sounds, output: [UNCLEAR]
+- Do NOT add explanations, questions, or commentary
 - Keep it natural and conversational
-- Preserve the tone and meaning
 
-Text: {text}
+Speech: {text}
 
 Translation:"""
 
@@ -388,6 +463,18 @@ Translation:"""
     def _clean_translation(self, text: str) -> str:
         """Clean up LLM output artifacts."""
         result = text.strip()
+        
+        # Check if LLM indicated unclear/untranslatable content
+        unclear_indicators = [
+            "[unclear]", "[music]", "[noise]", "[inaudible]",
+            "i cannot translate", "cannot be translated",
+            "no translatable", "not translatable",
+            "please provide", "i'm ready to",
+        ]
+        result_lower = result.lower()
+        for indicator in unclear_indicators:
+            if indicator in result_lower:
+                return ""  # Return empty to trigger music indicator
 
         # Remove common prefixes
         prefixes = [
@@ -395,6 +482,8 @@ Translation:"""
             "Here's the translation:",
             "The translation is:",
             f"In {self.target_language}:",
+            "Sure,",
+            "Here you go:",
         ]
         for prefix in prefixes:
             if result.lower().startswith(prefix.lower()):
@@ -405,6 +494,10 @@ Translation:"""
             result = result[1:-1]
         if result.startswith("'") and result.endswith("'"):
             result = result[1:-1]
+        
+        # Final hallucination check on translation output
+        if self._is_hallucination(result):
+            return ""
 
         return result.strip()
 

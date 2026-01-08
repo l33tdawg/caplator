@@ -1,8 +1,8 @@
 {
-  "translation_mode": "auto",
+  "translation_mode": "ollama",
   "target_language": "English",
   "whisper_model": "small",
-  "ollama_model": "llama3.2:latest",
+  "ollama_model": "llama3:latest",
   "ollama_host": "http://localhost:11434",
   "device": "auto",
   "audio_device": null,
@@ -15,8 +15,8 @@
     "opacity": 0.85,
     "font_size": 18,
     "position": {
-      "x": 400,
-      "y": 534
+      "x": 814,
+      "y": 563
     },
     "size": {
       "width": 1043,

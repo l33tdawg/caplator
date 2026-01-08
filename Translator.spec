@@ -5,6 +5,7 @@ Build with: pyinstaller Translator.spec
 """
 
 import sys
+import os
 from pathlib import Path
 
 block_cipher = None
@@ -12,10 +13,25 @@ block_cipher = None
 # Get the project root
 project_root = Path(SPECPATH)
 
+# Find PyQt6 location for plugins
+import PyQt6
+pyqt6_path = Path(PyQt6.__file__).parent
+qt_plugins_path = pyqt6_path / "Qt6" / "plugins"
+qt_lib_path = pyqt6_path / "Qt6" / "lib"
+
+# Collect Qt plugins
+qt_plugins = []
+if qt_plugins_path.exists():
+    for plugin_dir in ["platforms", "styles", "imageformats", "iconengines"]:
+        plugin_path = qt_plugins_path / plugin_dir
+        if plugin_path.exists():
+            for plugin_file in plugin_path.glob("*.dylib"):
+                qt_plugins.append((str(plugin_file), f"PyQt6/Qt6/plugins/{plugin_dir}"))
+
 a = Analysis(
     ['main.py'],
     pathex=[str(project_root)],
-    binaries=[],
+    binaries=qt_plugins,
     datas=[
         ('config.json', '.'),
         ('src', 'src'),
@@ -25,6 +41,7 @@ a = Analysis(
         'PyQt6.QtCore',
         'PyQt6.QtGui',
         'PyQt6.QtWidgets',
+        'PyQt6.sip',
         'numpy',
         'sounddevice',
         'faster_whisper',
@@ -32,6 +49,9 @@ a = Analysis(
         'huggingface_hub',
         'tokenizers',
         'ollama',
+        'httpx',
+        'httpcore',
+        'anyio',
         'src',
         'src.audio',
         'src.audio.capture',
@@ -45,9 +65,9 @@ a = Analysis(
         'src.utils',
         'src.utils.config',
     ],
-    hookspath=[],
+    hookspath=['hooks'],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['hooks/hook-pyqt6.py'],
     excludes=[
         'tkinter',
         'matplotlib',
@@ -74,7 +94,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,  # Disable UPX on macOS - can cause issues
     console=False,  # No terminal window
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -89,7 +109,7 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name='Translator',
 )
@@ -97,16 +117,17 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='Translator.app',
-    icon='assets/icon.icns',
+    icon='assets/icon.icns' if (project_root / 'assets' / 'icon.icns').exists() else None,
     bundle_identifier='com.translator.app',
     info_plist={
         'CFBundleName': 'Translator',
-        'CFBundleDisplayName': 'Translator',
+        'CFBundleDisplayName': 'Real-Time Translator',
         'CFBundleVersion': '1.0.0',
         'CFBundleShortVersionString': '1.0.0',
         'LSMinimumSystemVersion': '12.0',
         'NSHighResolutionCapable': True,
-        'NSMicrophoneUsageDescription': 'Translator needs audio access for transcription.',
+        'NSMicrophoneUsageDescription': 'Translator needs microphone access for audio capture.',
         'LSUIElement': False,
+        'NSRequiresAquaSystemAppearance': False,  # Support dark mode
     },
 )

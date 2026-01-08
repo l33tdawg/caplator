@@ -49,12 +49,15 @@ cat > "$APP_PATH/Contents/Info.plist" << 'EOF'
 </plist>
 EOF
 
+# Find the right Python (the one with PyQt6 installed)
+PYTHON_PATH=$(which python3)
+
 # Create launcher script
 cat > "$APP_PATH/Contents/MacOS/Translator" << EOF
 #!/bin/bash
 # Launcher for Real-Time Translator
 cd "$PROJECT_DIR"
-exec /usr/bin/python3 main.py
+exec $PYTHON_PATH main.py
 EOF
 
 chmod +x "$APP_PATH/Contents/MacOS/Translator"

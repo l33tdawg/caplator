@@ -8,6 +8,7 @@ Runs entirely locally with zero API costs.
 import os
 import struct
 import tempfile
+import threading
 from typing import Optional, Tuple
 from pathlib import Path
 
@@ -82,6 +83,10 @@ class Translator(BaseProvider):
         # Context buffer for better accuracy
         self._context_buffer = []  # Recent transcriptions for context
         self._max_context = 3  # Keep last 3 transcriptions
+        
+        # Thread lock for MLX (not thread-safe)
+        self._mlx_lock = threading.Lock()
+        self._mlx_error_count = 0  # Track consecutive errors
 
         # Ensure cache directory exists
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -244,21 +249,40 @@ class Translator(BaseProvider):
             raise TranscriptionError(f"Transcription failed: {e}") from e
 
     def _transcribe_mlx(self, wav_path: str, task: str) -> Tuple[str, str]:
-        """Transcribe using MLX-Whisper (Apple Silicon optimized)."""
+        """Transcribe using MLX-Whisper (Apple Silicon optimized).
+        
+        Note: MLX-Whisper can be unstable. Uses a lock to ensure thread safety.
+        """
         import mlx_whisper
         
         model_name = self.whisper["model_name"]
         
-        result = mlx_whisper.transcribe(
-            wav_path,
-            path_or_hf_repo=model_name,
-            task=task,
-        )
-        
-        text = result.get("text", "").strip()
-        language = result.get("language", "en")
-        
-        return text, language
+        # MLX is not thread-safe, use lock to prevent concurrent access
+        with self._mlx_lock:
+            try:
+                result = mlx_whisper.transcribe(
+                    wav_path,
+                    path_or_hf_repo=model_name,
+                    task=task,
+                    verbose=False,  # Reduce output
+                )
+                
+                # Reset error count on success
+                self._mlx_error_count = 0
+                
+                text = result.get("text", "").strip()
+                language = result.get("language", "en")
+                
+                return text, language
+                
+            except Exception as e:
+                self._mlx_error_count += 1
+                
+                # If MLX fails repeatedly, suggest switching to faster-whisper
+                if self._mlx_error_count >= 3:
+                    print(f"⚠️ MLX-Whisper unstable ({self._mlx_error_count} errors). Consider switching to faster-whisper.")
+                
+                raise TranscriptionError(f"MLX transcription failed: {e}") from e
     
     def _transcribe_faster_whisper(self, wav_path: str, task: str, model) -> Tuple[str, str]:
         """Transcribe using faster-whisper (CTranslate2 optimized)."""

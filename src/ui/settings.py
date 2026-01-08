@@ -76,11 +76,11 @@ class SettingsDialog(QDialog):
         whisper_layout = QFormLayout(whisper_group)
 
         self.whisper_backend = QComboBox()
-        self.whisper_backend.addItem("faster-whisper (Recommended)", "faster-whisper")
-        self.whisper_backend.addItem("MLX (Apple Silicon, experimental)", "mlx")
+        self.whisper_backend.addItem("faster-whisper (Stable, recommended)", "faster-whisper")
+        self.whisper_backend.addItem("MLX (Apple Silicon, may crash)", "mlx")
         self.whisper_backend.setToolTip(
-            "faster-whisper: Works on all platforms, very stable\n"
-            "MLX: Optimized for Apple Silicon (M1/M2/M3/M4), may be faster but experimental"
+            "faster-whisper: Works on all platforms, very stable - RECOMMENDED\n"
+            "MLX: Optimized for Apple Silicon (M1/M2/M3/M4), faster but may crash"
         )
         self.whisper_backend.currentIndexChanged.connect(self._on_backend_changed)
         whisper_layout.addRow("Backend:", self.whisper_backend)
@@ -226,8 +226,8 @@ class SettingsDialog(QDialog):
             # Check if MLX is available
             try:
                 import mlx_whisper
-                self.whisper_status.setText("✓ MLX-Whisper available")
-                self.whisper_status.setStyleSheet("color: #4CAF50; font-size: 11px;")
+                self.whisper_status.setText("⚠ MLX available but may crash. Use faster-whisper for stability.")
+                self.whisper_status.setStyleSheet("color: #FF9800; font-size: 11px;")
                 # MLX doesn't support device selection
                 self.device.setEnabled(False)
                 self.device.setToolTip("MLX automatically uses Apple Silicon GPU")
@@ -236,7 +236,8 @@ class SettingsDialog(QDialog):
                 self.whisper_status.setStyleSheet("color: #f44336; font-size: 11px;")
                 self.device.setEnabled(False)
         else:
-            self.whisper_status.setText("")
+            self.whisper_status.setText("✓ Recommended for stability")
+            self.whisper_status.setStyleSheet("color: #4CAF50; font-size: 11px;")
             self.device.setEnabled(True)
             self.device.setToolTip("")
 

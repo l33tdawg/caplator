@@ -104,6 +104,31 @@ class OverlayWindow(QWidget):
 
         main_layout.addLayout(controls)
 
+        # Stats bar - shows detected language, mode, confidence
+        stats_layout = QHBoxLayout()
+        stats_layout.setSpacing(16)
+        
+        # Language indicator
+        self.lang_label = QLabel("Lang: --")
+        self.lang_label.setStyleSheet("color: #888; font-size: 10px;")
+        self.lang_label.setToolTip("Detected source language")
+        stats_layout.addWidget(self.lang_label)
+        
+        # Mode indicator
+        self.mode_label = QLabel("Mode: --")
+        self.mode_label.setStyleSheet("color: #888; font-size: 10px;")
+        self.mode_label.setToolTip("Translation mode")
+        stats_layout.addWidget(self.mode_label)
+        
+        # Confidence indicator
+        self.confidence_label = QLabel("Conf: --%")
+        self.confidence_label.setStyleSheet("color: #888; font-size: 10px;")
+        self.confidence_label.setToolTip("Language detection confidence")
+        stats_layout.addWidget(self.confidence_label)
+        
+        stats_layout.addStretch()
+        main_layout.addLayout(stats_layout)
+
         # Scrollable caption area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -294,11 +319,55 @@ class OverlayWindow(QWidget):
             self.status_label.setStyleSheet("color: #4CAF50; font-size: 11px;")
             self._caption_history = []  # Clear history on start
             self.caption_label.setText("🎧 Listening for audio...")
+            # Reset stats
+            self.lang_label.setText("Lang: --")
+            self.confidence_label.setText("Conf: --%")
         else:
             self.start_stop_btn.setText("▶ Start")
             self.start_stop_btn.setStyleSheet(self._button_style("#4CAF50"))
             self.status_label.setText("Stopped")
             self.status_label.setStyleSheet("color: #888; font-size: 11px;")
+            # Clear stats
+            self.lang_label.setText("Lang: --")
+            self.mode_label.setText("Mode: --")
+            self.confidence_label.setText("Conf: --%")
+
+    def update_stats(self, language: str = None, mode: str = None, confidence: float = None):
+        """Update the stats bar with current translation info."""
+        if language:
+            # Map language codes to names
+            lang_names = {
+                "en": "English", "es": "Spanish", "fr": "French", "de": "German",
+                "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "ru": "Russian",
+                "zh": "Chinese", "ja": "Japanese", "ko": "Korean", "ar": "Arabic",
+                "hi": "Hindi", "vi": "Vietnamese", "th": "Thai", "id": "Indonesian",
+                "tr": "Turkish", "pl": "Polish", "uk": "Ukrainian", "sv": "Swedish",
+            }
+            lang_display = lang_names.get(language, language.upper())
+            self.lang_label.setText(f"🌐 {lang_display}")
+            self.lang_label.setStyleSheet("color: #64B5F6; font-size: 10px;")
+        
+        if mode:
+            mode_display = {
+                "transcribe_only": "📝 Transcribe",
+                "ollama": "🤖 Ollama",
+                "auto": "⚡ Auto",
+                "whisper": "🎯 Whisper→EN",
+            }.get(mode, mode)
+            self.mode_label.setText(mode_display)
+            self.mode_label.setStyleSheet("color: #81C784; font-size: 10px;")
+        
+        if confidence is not None:
+            conf_pct = int(confidence * 100)
+            # Color based on confidence level
+            if conf_pct >= 80:
+                color = "#4CAF50"  # Green
+            elif conf_pct >= 60:
+                color = "#FFC107"  # Yellow
+            else:
+                color = "#FF5722"  # Orange
+            self.confidence_label.setText(f"🎯 {conf_pct}%")
+            self.confidence_label.setStyleSheet(f"color: {color}; font-size: 10px;")
 
     def update_text(self, text: str):
         """Update caption text with fade animation."""

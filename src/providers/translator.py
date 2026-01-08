@@ -76,6 +76,8 @@ class Translator(BaseProvider):
         self._whisper = None
         self._ollama = None
         self._detected_language = None
+        self._language_confidence = 0.0
+        self._last_mode_used = None  # Track which translation method was used
         
         # Context buffer for better accuracy
         self._context_buffer = []  # Recent transcriptions for context
@@ -279,6 +281,9 @@ class Translator(BaseProvider):
         
         text = " ".join(seg.text for seg in segments).strip()
         
+        # Store language confidence
+        self._language_confidence = info.language_probability
+        
         # Update context buffer
         if text:
             self._context_buffer.append(text)
@@ -351,13 +356,28 @@ Translation:"""
         
         # Transcription-only mode: no translation
         if self.translation_mode == "transcribe_only":
+            self._last_mode_used = "transcribe_only"
             return transcription
         
         # Skip Ollama if Whisper already translated to English (much faster!)
         if getattr(self, '_whisper_translated', False):
+            self._last_mode_used = "whisper"
             return transcription
         
+        self._last_mode_used = "ollama"
         return self.translate(transcription)
+    
+    def get_stats(self) -> dict:
+        """Get current translation statistics.
+        
+        Returns:
+            Dict with language, confidence, and mode info
+        """
+        return {
+            "language": self._detected_language,
+            "confidence": self._language_confidence,
+            "mode": self._last_mode_used or self.translation_mode,
+        }
     
     def clear_context(self):
         """Clear the context buffer. Call when starting a new session."""

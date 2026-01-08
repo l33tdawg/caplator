@@ -100,6 +100,14 @@ class TranslatorApp:
             
             if result:
                 self.overlay.set_text_immediate(result)
+                
+                # Update stats display
+                stats = self.translator.get_stats()
+                self.overlay.update_stats(
+                    language=stats.get("language"),
+                    mode=stats.get("mode"),
+                    confidence=stats.get("confidence"),
+                )
             else:
                 # No speech detected but audio was playing = likely music
                 self.overlay.set_text_immediate("[MUSIC]")
@@ -175,6 +183,10 @@ class TranslatorApp:
         self.audio_capture.start()
         self.overlay.set_text_immediate("🎧 Listening for audio...")
         self.overlay.set_running(True)
+        
+        # Show initial mode
+        mode = self.config.get("translation_mode", "auto")
+        self.overlay.update_stats(mode=mode)
 
     def stop(self):
         """Stop translation."""

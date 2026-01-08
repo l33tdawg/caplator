@@ -163,6 +163,27 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(appearance_group)
 
+        # About section
+        about_group = QGroupBox("About")
+        about_layout = QVBoxLayout(about_group)
+        
+        about_text = QLabel(
+            "<b>Real-Time Audio Translator</b> v1.0<br><br>"
+            "100% local, 100% free, 100% private.<br><br>"
+            "Captures system audio, transcribes using Whisper, "
+            "and translates with Ollama - all running locally on your machine.<br><br>"
+            "<b>Created by:</b><br>"
+            "Dhillon 'l33tdawg' Kannabhiran<br>"
+            "<a href='mailto:l33tdawg@hitb.org'>l33tdawg@hitb.org</a><br><br>"
+            "<a href='https://github.com/l33tdawg/caplator'>github.com/l33tdawg/caplator</a>"
+        )
+        about_text.setOpenExternalLinks(True)
+        about_text.setWordWrap(True)
+        about_text.setStyleSheet("color: #aaa; font-size: 12px; padding: 8px;")
+        about_layout.addWidget(about_text)
+        
+        layout.addWidget(about_group)
+
         # Buttons
         buttons = QHBoxLayout()
         buttons.addStretch()

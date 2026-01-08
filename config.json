@@ -1,0 +1,26 @@
+{
+  "target_language": "English",
+  "whisper_model": "small",
+  "ollama_model": "llama3.2",
+  "ollama_host": "http://localhost:11434",
+  "device": "auto",
+  "audio_device": null,
+  "audio": {
+    "sample_rate": 44100,
+    "chunk_duration": 3.0,
+    "silence_threshold": 100
+  },
+  "overlay": {
+    "opacity": 0.85,
+    "font_size": 18,
+    "position": {
+      "x": 508,
+      "y": 914
+    },
+    "size": {
+      "width": 800,
+      "height": 200
+    }
+  },
+  "whisper_backend": "faster-whisper"
+}

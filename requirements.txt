@@ -1,0 +1,18 @@
+# GUI Framework
+pyqt6>=6.6.0
+
+# Audio Processing
+sounddevice>=0.4.0
+numpy>=1.24.0
+
+# Local AI (100% free, runs on your machine)
+faster-whisper>=1.0.0    # Fast local speech-to-text (works on all platforms)
+ollama>=0.1.0            # Local LLM for translation (optional, only for non-English targets)
+
+# Optional: Apple Silicon Optimization (M1/M2/M3 Macs)
+# Uncomment if you have an Apple Silicon Mac for ~2x faster transcription
+mlx-whisper>=0.4.0       # MLX-optimized Whisper for Apple Silicon
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0

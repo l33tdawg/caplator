@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+ENV/
+
+# Build artifacts
+build/
+dist/
+*.spec.bak
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# App data
+*.log
+app.log
+
+# Cache
+.cache/
+*.cache
+
+# PyInstaller
+*.manifest
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/

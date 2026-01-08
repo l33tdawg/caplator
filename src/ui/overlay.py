@@ -104,27 +104,49 @@ class OverlayWindow(QWidget):
 
         main_layout.addLayout(controls)
 
-        # Stats bar - shows detected language, mode, confidence
+        # Stats bar - shows detected language, mode, confidence, models
         stats_layout = QHBoxLayout()
-        stats_layout.setSpacing(16)
+        stats_layout.setSpacing(12)
         
         # Language indicator
-        self.lang_label = QLabel("Lang: --")
+        self.lang_label = QLabel("--")
         self.lang_label.setStyleSheet("color: #888; font-size: 10px;")
         self.lang_label.setToolTip("Detected source language")
         stats_layout.addWidget(self.lang_label)
         
+        # Confidence indicator
+        self.confidence_label = QLabel("--%")
+        self.confidence_label.setStyleSheet("color: #888; font-size: 10px;")
+        self.confidence_label.setToolTip("Language detection confidence")
+        stats_layout.addWidget(self.confidence_label)
+        
+        # Separator
+        sep1 = QLabel("|")
+        sep1.setStyleSheet("color: #444; font-size: 10px;")
+        stats_layout.addWidget(sep1)
+        
         # Mode indicator
-        self.mode_label = QLabel("Mode: --")
+        self.mode_label = QLabel("--")
         self.mode_label.setStyleSheet("color: #888; font-size: 10px;")
         self.mode_label.setToolTip("Translation mode")
         stats_layout.addWidget(self.mode_label)
         
-        # Confidence indicator
-        self.confidence_label = QLabel("Conf: --%")
-        self.confidence_label.setStyleSheet("color: #888; font-size: 10px;")
-        self.confidence_label.setToolTip("Language detection confidence")
-        stats_layout.addWidget(self.confidence_label)
+        # Separator
+        sep2 = QLabel("|")
+        sep2.setStyleSheet("color: #444; font-size: 10px;")
+        stats_layout.addWidget(sep2)
+        
+        # Whisper model indicator
+        self.whisper_model_label = QLabel("Whisper: --")
+        self.whisper_model_label.setStyleSheet("color: #888; font-size: 10px;")
+        self.whisper_model_label.setToolTip("Whisper model for transcription")
+        stats_layout.addWidget(self.whisper_model_label)
+        
+        # Ollama model indicator
+        self.ollama_model_label = QLabel("LLM: --")
+        self.ollama_model_label.setStyleSheet("color: #888; font-size: 10px;")
+        self.ollama_model_label.setToolTip("Ollama model for translation")
+        stats_layout.addWidget(self.ollama_model_label)
         
         stats_layout.addStretch()
         main_layout.addLayout(stats_layout)
@@ -319,20 +341,30 @@ class OverlayWindow(QWidget):
             self.status_label.setStyleSheet("color: #4CAF50; font-size: 11px;")
             self._caption_history = []  # Clear history on start
             self.caption_label.setText("🎧 Listening for audio...")
-            # Reset stats
-            self.lang_label.setText("Lang: --")
-            self.confidence_label.setText("Conf: --%")
+            # Reset language stats (models will be set separately)
+            self.lang_label.setText("--")
+            self.lang_label.setStyleSheet("color: #888; font-size: 10px;")
+            self.confidence_label.setText("--%")
+            self.confidence_label.setStyleSheet("color: #888; font-size: 10px;")
         else:
             self.start_stop_btn.setText("▶ Start")
             self.start_stop_btn.setStyleSheet(self._button_style("#4CAF50"))
             self.status_label.setText("Stopped")
             self.status_label.setStyleSheet("color: #888; font-size: 11px;")
-            # Clear stats
-            self.lang_label.setText("Lang: --")
-            self.mode_label.setText("Mode: --")
-            self.confidence_label.setText("Conf: --%")
+            # Clear all stats
+            self.lang_label.setText("--")
+            self.lang_label.setStyleSheet("color: #888; font-size: 10px;")
+            self.mode_label.setText("--")
+            self.mode_label.setStyleSheet("color: #888; font-size: 10px;")
+            self.confidence_label.setText("--%")
+            self.confidence_label.setStyleSheet("color: #888; font-size: 10px;")
+            self.whisper_model_label.setText("Whisper: --")
+            self.whisper_model_label.setStyleSheet("color: #888; font-size: 10px;")
+            self.ollama_model_label.setText("LLM: --")
+            self.ollama_model_label.setStyleSheet("color: #888; font-size: 10px;")
 
-    def update_stats(self, language: str = None, mode: str = None, confidence: float = None):
+    def update_stats(self, language: str = None, mode: str = None, confidence: float = None,
+                     whisper_model: str = None, ollama_model: str = None):
         """Update the stats bar with current translation info."""
         if language:
             # Map language codes to names
@@ -368,6 +400,16 @@ class OverlayWindow(QWidget):
                 color = "#FF5722"  # Orange
             self.confidence_label.setText(f"🎯 {conf_pct}%")
             self.confidence_label.setStyleSheet(f"color: {color}; font-size: 10px;")
+        
+        if whisper_model:
+            self.whisper_model_label.setText(f"🎤 {whisper_model}")
+            self.whisper_model_label.setStyleSheet("color: #CE93D8; font-size: 10px;")
+        
+        if ollama_model:
+            # Shorten long model names (e.g., "llama3.2:latest" -> "llama3.2")
+            short_name = ollama_model.split(":")[0] if ":" in ollama_model else ollama_model
+            self.ollama_model_label.setText(f"🧠 {short_name}")
+            self.ollama_model_label.setStyleSheet("color: #FFB74D; font-size: 10px;")
 
     def update_text(self, text: str):
         """Update caption text with fade animation."""

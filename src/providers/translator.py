@@ -371,12 +371,14 @@ Translation:"""
         """Get current translation statistics.
         
         Returns:
-            Dict with language, confidence, and mode info
+            Dict with language, confidence, mode, and model info
         """
         return {
             "language": self._detected_language,
             "confidence": self._language_confidence,
             "mode": self._last_mode_used or self.translation_mode,
+            "whisper_model": self.whisper_model_name,
+            "ollama_model": self.ollama_model,
         }
     
     def clear_context(self):

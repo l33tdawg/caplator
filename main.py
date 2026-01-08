@@ -107,6 +107,8 @@ class TranslatorApp:
                     language=stats.get("language"),
                     mode=stats.get("mode"),
                     confidence=stats.get("confidence"),
+                    whisper_model=stats.get("whisper_model"),
+                    ollama_model=stats.get("ollama_model"),
                 )
             else:
                 # No speech detected but audio was playing = likely music
@@ -184,9 +186,15 @@ class TranslatorApp:
         self.overlay.set_text_immediate("🎧 Listening for audio...")
         self.overlay.set_running(True)
         
-        # Show initial mode
+        # Show initial mode and models
         mode = self.config.get("translation_mode", "auto")
-        self.overlay.update_stats(mode=mode)
+        whisper_model = self.config.get("whisper_model", "small")
+        ollama_model = self.config.get("ollama_model", "llama3.2")
+        self.overlay.update_stats(
+            mode=mode,
+            whisper_model=whisper_model,
+            ollama_model=ollama_model if mode != "transcribe_only" else None,
+        )
 
     def stop(self):
         """Stop translation."""

@@ -13,6 +13,9 @@ from typing import Optional, Tuple
 from pathlib import Path
 
 import numpy as np
+from scipy import signal
+
+from typing import Callable, Generator
 
 from .base import BaseProvider, TranscriptionError, TranslationError
 
@@ -44,6 +47,8 @@ class Translator(BaseProvider):
         device: str = "auto",
         compute_type: str = "auto",
         translation_mode: str = "auto",  # transcribe_only, ollama, auto
+        beam_size: int = 3,  # Higher = more accurate but slower (1-5)
+        best_of: int = 2,  # Number of candidates to consider
     ):
         """Initialize the translator.
 
@@ -62,6 +67,8 @@ class Translator(BaseProvider):
                             - transcribe_only: Just transcribe, no translation
                             - ollama: Always use Ollama for translation
                             - auto: Use Whisper for English, Ollama for others
+            beam_size: Beam search size (1-5). Higher = more accurate but slower
+            best_of: Number of candidates to consider for best_of search
         """
         super().__init__(target_language)
 
@@ -72,6 +79,8 @@ class Translator(BaseProvider):
         self.device = device
         self.compute_type = compute_type
         self.translation_mode = translation_mode
+        self.beam_size = beam_size
+        self.best_of = best_of
 
         # Lazy-loaded models
         self._whisper = None
@@ -80,9 +89,9 @@ class Translator(BaseProvider):
         self._language_confidence = 0.0
         self._last_mode_used = None  # Track which translation method was used
         
-        # Context buffer for better accuracy
+        # Context buffer for better accuracy (increased from 3 to 7 for better context)
         self._context_buffer = []  # Recent transcriptions for context
-        self._max_context = 3  # Keep last 3 transcriptions
+        self._max_context = 7  # Keep last 7 transcriptions for better context
         
         # Thread lock for MLX (not thread-safe)
         self._mlx_lock = threading.Lock()
@@ -295,8 +304,8 @@ class Translator(BaseProvider):
         # First try with VAD filter
         segments, info = model.transcribe(
             wav_path,
-            beam_size=1,
-            best_of=1,
+            beam_size=self.beam_size,  # Configurable beam size (default 3 for better accuracy)
+            best_of=self.best_of,  # Configurable best_of (default 2)
             vad_filter=True,  # Enable VAD to filter music/noise
             vad_parameters=dict(
                 threshold=0.3,  # Lower threshold = less aggressive filtering (default 0.5)
@@ -318,8 +327,8 @@ class Translator(BaseProvider):
         if not segment_list:
             segments_retry, info = model.transcribe(
                 wav_path,
-                beam_size=1,
-                best_of=1,
+                beam_size=self.beam_size,
+                best_of=self.best_of,
                 vad_filter=False,  # Disable VAD for retry
                 task=task,
                 without_timestamps=True,
@@ -412,6 +421,39 @@ class Translator(BaseProvider):
         
         return False
 
+    def _build_translation_prompt(self, text: str) -> str:
+        """Build an enhanced translation prompt with few-shot examples.
+        
+        Uses few-shot examples to improve translation quality and consistency.
+        """
+        # Few-shot examples for better translation quality
+        examples = """Examples of natural translations:
+Spanish: "Hola, ¿cómo estás?" → "Hi, how are you?"
+Japanese: "ありがとうございます" → "Thank you very much"
+French: "C'est magnifique!" → "That's magnificent!"
+German: "Ich verstehe nicht" → "I don't understand"
+Chinese: "你好，很高兴认识你" → "Hello, nice to meet you"
+Korean: "감사합니다" → "Thank you"
+"""
+        
+        return f"""You are a real-time translator for spoken content. Translate naturally and conversationally.
+
+{examples}
+RULES:
+- Output ONLY the translation, nothing else
+- Keep the tone, emotion, and intent of the original
+- Preserve names, proper nouns, and technical terms
+- If the text is nonsensical, unclear, or just sounds/music, output: [UNCLEAR]
+- Do NOT add explanations, questions, or commentary
+- Maintain natural speech patterns (contractions, informal language if present)
+
+Source language: {self._detected_language or 'auto-detected'}
+Target language: {self.target_language}
+
+Speech: {text}
+
+Translation:"""
+
     def translate(self, text: str) -> str:
         """Translate text to target language using Ollama.
 
@@ -436,18 +478,8 @@ class Translator(BaseProvider):
             return ""
         
         try:
-            # Build translation prompt
-            prompt = f"""Translate the following speech to {self.target_language}.
-
-RULES:
-- Output ONLY the direct translation, nothing else
-- If the text is nonsensical, unclear, or just music/sounds, output: [UNCLEAR]
-- Do NOT add explanations, questions, or commentary
-- Keep it natural and conversational
-
-Speech: {text}
-
-Translation:"""
+            # Build enhanced translation prompt with few-shot examples
+            prompt = self._build_translation_prompt(text)
 
             response = self.ollama.generate(
                 model=self.ollama_model,
@@ -465,12 +497,75 @@ Translation:"""
         except Exception as e:
             raise TranslationError(f"Translation failed: {e}") from e
 
-    def transcribe_and_translate(self, audio_data: bytes, source_sample_rate: int = 44100) -> str:
+    def translate_streaming(
+        self, 
+        text: str, 
+        on_token: Callable[[str], None]
+    ) -> str:
+        """Translate text with streaming output for faster perceived response.
+
+        Args:
+            text: Text to translate
+            on_token: Callback function called with each token as it's generated
+
+        Returns:
+            Complete translated text
+        """
+        if not text or not text.strip():
+            return ""
+
+        # If source matches target, return as-is
+        source = self._detected_language or "unknown"
+        target_code = self._get_language_code(self.target_language)
+
+        if source == target_code:
+            on_token(text)
+            return text
+
+        # Skip translation if text looks like noise/hallucination
+        if self._is_hallucination(text):
+            return ""
+        
+        try:
+            # Build enhanced translation prompt
+            prompt = self._build_translation_prompt(text)
+
+            # Stream the response
+            full_response = ""
+            response = self.ollama.generate(
+                model=self.ollama_model,
+                prompt=prompt,
+                stream=True,  # Enable streaming
+                options={
+                    "temperature": 0.3,
+                    "num_predict": 500,
+                    "top_p": 0.9,
+                },
+            )
+            
+            for chunk in response:
+                token = chunk.get("response", "")
+                if token:
+                    full_response += token
+                    on_token(full_response)  # Send accumulated text
+            
+            return self._clean_translation(full_response)
+
+        except Exception as e:
+            raise TranslationError(f"Translation failed: {e}") from e
+
+    def transcribe_and_translate(
+        self, 
+        audio_data: bytes, 
+        source_sample_rate: int = 44100,
+        on_token: Callable[[str], None] = None
+    ) -> str:
         """Transcribe audio and translate to target language.
 
         Args:
             audio_data: Raw audio bytes
             source_sample_rate: Sample rate of input audio (default 44100)
+            on_token: Optional callback for streaming translation tokens
 
         Returns:
             Translated text (or just transcription if in transcribe_only mode)
@@ -490,6 +585,10 @@ Translation:"""
             return transcription
         
         self._last_mode_used = "ollama"
+        
+        # Use streaming if callback provided
+        if on_token:
+            return self.translate_streaming(transcription, on_token)
         return self.translate(transcription)
     
     def get_stats(self) -> dict:
@@ -590,20 +689,23 @@ Translation:"""
     def _resample_audio(self, audio_data: bytes, from_rate: int, to_rate: int) -> bytes:
         """Resample audio from one sample rate to another.
         
-        Uses simple linear interpolation for speed.
+        Uses scipy's polyphase resampling for high-quality audio processing.
+        This preserves audio fidelity much better than simple linear interpolation.
         """
         # Convert to numpy array
         audio = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32)
         
-        # Calculate new length
-        ratio = to_rate / from_rate
-        new_length = int(len(audio) * ratio)
+        # Find the GCD to simplify the resampling ratio
+        from math import gcd
+        g = gcd(to_rate, from_rate)
+        up = to_rate // g
+        down = from_rate // g
         
-        # Resample using linear interpolation
-        indices = np.linspace(0, len(audio) - 1, new_length)
-        resampled = np.interp(indices, np.arange(len(audio)), audio)
+        # Use polyphase resampling (high quality, anti-aliasing built in)
+        resampled = signal.resample_poly(audio, up, down)
         
-        # Convert back to int16 bytes
+        # Clip to valid int16 range and convert back
+        resampled = np.clip(resampled, -32768, 32767)
         return resampled.astype(np.int16).tobytes()
 
     def _create_wav(self, pcm_data: bytes, sample_rate: int = 16000) -> bytes:

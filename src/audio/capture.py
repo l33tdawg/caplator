@@ -122,8 +122,45 @@ class AudioCapture(QObject):
             return self.find_device_by_name(self.device_name)
         return self.find_blackhole_device()
 
+    def _normalize_audio(self, audio_data: bytes, target_level: float = 0.8) -> bytes:
+        """Normalize audio to a consistent level for better transcription.
+        
+        This helps with quiet audio sources by boosting the signal to an
+        optimal level for speech recognition.
+
+        Args:
+            audio_data: Raw audio bytes
+            target_level: Target level as fraction of max range (0.0-1.0)
+
+        Returns:
+            Normalized audio bytes
+        """
+        audio = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32)
+        
+        # Calculate current peak
+        peak = np.max(np.abs(audio))
+        
+        if peak > 0:
+            # Calculate gain needed to reach target level
+            target_peak = 32767 * target_level
+            gain = target_peak / peak
+            
+            # Limit gain to avoid amplifying noise too much (max 10x boost)
+            gain = min(gain, 10.0)
+            
+            # Apply gain
+            audio = audio * gain
+            
+            # Clip to valid range
+            audio = np.clip(audio, -32768, 32767)
+            
+        return audio.astype(np.int16).tobytes()
+    
     def _is_silent(self, audio_data: bytes) -> bool:
-        """Check if audio chunk is silent using simple amplitude threshold.
+        """Check if audio chunk is silent using RMS (Root Mean Square) energy.
+
+        RMS is more robust than simple amplitude for detecting speech vs silence
+        as it better represents the overall energy level of the audio signal.
 
         Args:
             audio_data: Raw audio bytes
@@ -131,10 +168,19 @@ class AudioCapture(QObject):
         Returns:
             True if audio is below silence threshold
         """
-        audio_array = np.frombuffer(audio_data, dtype=np.int16)
-        amplitude = np.abs(audio_array).mean()
-        is_silent = amplitude < self.silence_threshold
-        logger.info(f"Amplitude: {amplitude:.1f} (threshold: {self.silence_threshold}) -> {'SILENT' if is_silent else 'SPEECH'}")
+        audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32)
+        
+        # Calculate RMS energy - more robust than peak amplitude
+        rms = np.sqrt(np.mean(audio_array ** 2))
+        
+        # Also check peak amplitude for very short loud sounds
+        peak = np.max(np.abs(audio_array))
+        
+        # Consider silent if RMS is below threshold
+        # The threshold is now interpreted as RMS level
+        is_silent = rms < self.silence_threshold
+        
+        logger.info(f"RMS: {rms:.1f}, Peak: {peak:.1f} (threshold: {self.silence_threshold}) -> {'SILENT' if is_silent else 'SPEECH'}")
         return is_silent
 
     def _audio_callback(self, indata, frames, time_info, status):
@@ -155,7 +201,9 @@ class AudioCapture(QObject):
 
             # Only emit if not silent
             if not self._is_silent(combined):
-                self.audio_ready.emit(combined)
+                # Normalize audio for better transcription of quiet sources
+                normalized = self._normalize_audio(combined)
+                self.audio_ready.emit(normalized)
 
     def _capture_loop(self):
         """Main capture loop running in separate thread."""

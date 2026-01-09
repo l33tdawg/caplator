@@ -30,6 +30,8 @@ fi
 /usr/libexec/PlistBuddy -c "Set :CFBundleName Translator" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'Real-Time Translator'" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string com.translator.app" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
+# Make the launcher a background app (no dock icon) - only Python app shows in dock
+/usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$APP_PATH/Contents/Info.plist" 2>/dev/null || true
 
 echo ""
 echo "✅ Created $APP_PATH"

@@ -69,6 +69,8 @@ class TranslatorApp:
                 ollama_host=self.config.get("ollama_host", "http://localhost:11434"),
                 device=self.config.get("device", "auto"),
                 translation_mode=self.config.get("translation_mode", "auto"),
+                beam_size=self.config.get("whisper_beam_size", 3),
+                best_of=self.config.get("whisper_best_of", 2),
             )
 
             # Check Ollama is running (only if we need it)
@@ -92,14 +94,38 @@ class TranslatorApp:
             return
         self._executor.submit(self._process_audio, audio_data)
 
+    def _on_streaming_token(self, text: str):
+        """Handle streaming translation token (called from background thread)."""
+        # Use Qt signal mechanism to safely update UI from background thread
+        from PyQt6.QtCore import QMetaObject, Qt, Q_ARG
+        QMetaObject.invokeMethod(
+            self.overlay, 
+            "set_streaming_text", 
+            Qt.ConnectionType.QueuedConnection,
+            Q_ARG(str, text)
+        )
+    
     def _process_audio(self, audio_data: bytes):
         """Process audio in background thread."""
         try:
             sample_rate = self.config.get("audio.sample_rate", 44100)
-            result = self.translator.transcribe_and_translate(audio_data, sample_rate)
+            
+            # Use streaming callback for Ollama translations
+            result = self.translator.transcribe_and_translate(
+                audio_data, 
+                sample_rate,
+                on_token=self._on_streaming_token
+            )
             
             if result:
-                self.overlay.set_text_immediate(result)
+                # Finalize the streaming text
+                from PyQt6.QtCore import QMetaObject, Qt, Q_ARG
+                QMetaObject.invokeMethod(
+                    self.overlay, 
+                    "finalize_streaming_text", 
+                    Qt.ConnectionType.QueuedConnection,
+                    Q_ARG(str, result)
+                )
                 
                 # Update stats display
                 stats = self.translator.get_stats()

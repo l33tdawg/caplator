@@ -65,6 +65,24 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(scroll_content)
         layout.setContentsMargins(0, 0, 10, 0)  # Right margin for scrollbar
 
+        # Quality Profile (top of settings for prominence)
+        quality_group = QGroupBox("Quality Profile")
+        quality_layout = QFormLayout(quality_group)
+        
+        self.quality_profile = QComboBox()
+        self.quality_profile.addItem("⚡ Fast - Live conversations (low latency)", "fast")
+        self.quality_profile.addItem("⚖️ Balanced - Movies/videos (recommended)", "balanced")
+        self.quality_profile.addItem("🎯 Accurate - Important recordings (high quality)", "accurate")
+        self.quality_profile.currentIndexChanged.connect(self._on_profile_changed)
+        quality_layout.addRow("Profile:", self.quality_profile)
+        
+        self.profile_description = QLabel("")
+        self.profile_description.setStyleSheet("color: #888; font-size: 11px; font-style: italic;")
+        self.profile_description.setWordWrap(True)
+        quality_layout.addRow("", self.profile_description)
+        
+        layout.addWidget(quality_group)
+
         # Translation settings
         trans_group = QGroupBox("Translation")
         trans_layout = QFormLayout(trans_group)
@@ -184,7 +202,7 @@ class SettingsDialog(QDialog):
             "<div style='text-align: center;'>"
             "<p style='font-size: 16px; font-weight: bold; color: #333; margin-bottom: 4px;'>"
             "Real-Time Audio Translator</p>"
-            "<p style='font-size: 11px; color: #888; margin-bottom: 12px;'>Version 1.0</p>"
+            "<p style='font-size: 11px; color: #888; margin-bottom: 12px;'>Version 1.1.0</p>"
             "<p style='font-size: 12px; color: #4CAF50; font-weight: 500; margin-bottom: 12px;'>"
             "100% local • 100% free • 100% private</p>"
             "<p style='font-size: 11px; color: #666; margin-bottom: 16px;'>"
@@ -291,6 +309,18 @@ class SettingsDialog(QDialog):
             self.whisper_status.setStyleSheet("color: #4CAF50; font-size: 11px;")
             self.device.setEnabled(True)
             self.device.setToolTip("")
+    
+    def _on_profile_changed(self, index):
+        """Handle quality profile change."""
+        from src.utils.config import QUALITY_PROFILES
+        
+        profile_name = self.quality_profile.currentData()
+        if profile_name in QUALITY_PROFILES:
+            profile = QUALITY_PROFILES[profile_name]
+            self.profile_description.setText(profile.get("description", ""))
+            
+            # Update related settings to match profile
+            self.chunk_duration.setValue(int(profile.get("audio.chunk_duration", 3)))
 
     def _refresh_ollama_models(self):
         """Fetch available models from Ollama server."""
@@ -360,6 +390,13 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self):
         """Load current settings into form."""
+        # Quality profile
+        profile = self.config.get("quality_profile", "balanced")
+        idx = self.quality_profile.findData(profile)
+        if idx >= 0:
+            self.quality_profile.setCurrentIndex(idx)
+        self._on_profile_changed(0)  # Update description
+        
         # Translation mode
         mode = self.config.get("translation_mode", "auto")
         idx = self.translation_mode.findData(mode)
@@ -434,6 +471,10 @@ class SettingsDialog(QDialog):
     def _apply(self):
         """Apply settings without closing dialog."""
         try:
+            # Apply quality profile first (it sets beam_size, best_of, chunk_duration)
+            profile_name = self.quality_profile.currentData()
+            self.config.apply_quality_profile(profile_name)
+            
             self.config.set("translation_mode", self.translation_mode.currentData())
             self.config.set("target_language", self.target_lang.currentText())
             self.config.set("whisper_backend", self.whisper_backend.currentData())
@@ -465,6 +506,10 @@ class SettingsDialog(QDialog):
     def _save_and_close(self):
         """Save settings and close dialog."""
         try:
+            # Apply quality profile first (it sets beam_size, best_of, chunk_duration)
+            profile_name = self.quality_profile.currentData()
+            self.config.apply_quality_profile(profile_name)
+            
             self.config.set("translation_mode", self.translation_mode.currentData())
             self.config.set("target_language", self.target_lang.currentText())
             self.config.set("whisper_backend", self.whisper_backend.currentData())

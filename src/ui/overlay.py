@@ -10,9 +10,11 @@ from PyQt6.QtWidgets import (
     QGraphicsOpacityEffect,
     QScrollArea,
     QFrame,
+    QFileDialog,
+    QMessageBox,
 )
-from PyQt6.QtCore import Qt, QPoint, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QFont, QColor, QPainter, QPainterPath, QBrush
+from PyQt6.QtCore import Qt, QPoint, QPropertyAnimation, QEasingCurve, pyqtSignal, pyqtSlot
+from PyQt6.QtGui import QFont, QColor, QPainter, QPainterPath, QBrush, QShortcut, QKeySequence
 
 
 class OverlayWindow(QWidget):
@@ -40,6 +42,7 @@ class OverlayWindow(QWidget):
 
         self._setup_window()
         self._setup_ui()
+        self._setup_shortcuts()
         self._apply_config()
 
     def _setup_window(self):
@@ -51,6 +54,42 @@ class OverlayWindow(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMinimumSize(500, 150)
+    
+    def _setup_shortcuts(self):
+        """Setup keyboard shortcuts for common actions."""
+        # Cmd/Ctrl+Shift+T - Toggle translation on/off
+        toggle_shortcut = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
+        toggle_shortcut.activated.connect(self._on_start_stop)
+        
+        # Cmd/Ctrl+Shift+C - Clear history
+        clear_shortcut = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
+        clear_shortcut.activated.connect(self._on_clear_history)
+        
+        # Cmd/Ctrl+Shift+S - Save/Export captions
+        save_shortcut = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
+        save_shortcut.activated.connect(self.export_captions)
+        
+        # Cmd/Ctrl+Shift+, - Open settings
+        settings_shortcut = QShortcut(QKeySequence("Ctrl+,"), self)
+        settings_shortcut.activated.connect(self.settings_clicked.emit)
+        
+        # Escape - Stop translation
+        escape_shortcut = QShortcut(QKeySequence("Escape"), self)
+        escape_shortcut.activated.connect(self._on_escape)
+        
+        # Space - Toggle start/stop when not in text field
+        space_shortcut = QShortcut(QKeySequence("Space"), self)
+        space_shortcut.activated.connect(self._on_start_stop)
+    
+    def _on_clear_history(self):
+        """Handle clear history shortcut."""
+        self.clear_history()
+        self.caption_label.setText("History cleared. Press ▶ to start.")
+    
+    def _on_escape(self):
+        """Handle escape key - stop if running."""
+        if self._is_running:
+            self.stop_clicked.emit()
 
     def _setup_ui(self):
         """Set up the UI components."""
@@ -79,6 +118,15 @@ class OverlayWindow(QWidget):
         settings_btn.setToolTip("Settings")
         settings_btn.setStyleSheet(self._icon_button_style())
         top_bar.addWidget(settings_btn)
+        
+        # Export button
+        export_btn = QPushButton("💾")
+        export_btn.setFixedSize(32, 32)
+        export_btn.clicked.connect(self.export_captions)
+        export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        export_btn.setToolTip("Export captions to file")
+        export_btn.setStyleSheet(self._icon_button_style())
+        top_bar.addWidget(export_btn)
 
         top_bar.addStretch()
 
@@ -570,6 +618,91 @@ class OverlayWindow(QWidget):
         self._caption_history = []
         self._last_text_time = 0
         self.caption_label.setText("Listening for audio...")
+    
+    @pyqtSlot(str)
+    def set_streaming_text(self, text: str):
+        """Update text during streaming translation (shows partial results).
+        
+        This updates the last line in history with the streaming text,
+        giving the user faster feedback during translation.
+        """
+        if not text:
+            return
+        
+        # Update the last entry or add new one for streaming
+        if self._caption_history and self._caption_history[-1].startswith("⏳"):
+            # Update existing streaming entry
+            self._caption_history[-1] = f"⏳ {text}"
+        else:
+            # Add new streaming entry
+            self._caption_history.append(f"⏳ {text}")
+        
+        self._update_display()
+    
+    @pyqtSlot(str)
+    def finalize_streaming_text(self, text: str):
+        """Finalize streaming text (remove streaming indicator)."""
+        if not text:
+            return
+        
+        # Replace streaming entry with final text
+        if self._caption_history and self._caption_history[-1].startswith("⏳"):
+            self._caption_history[-1] = text
+        else:
+            self._caption_history.append(text)
+        
+        self._update_display()
+    
+    def export_captions(self):
+        """Export caption history to a text file."""
+        if not self._caption_history:
+            QMessageBox.information(
+                self,
+                "Export Captions",
+                "No captions to export yet. Start translating first!"
+            )
+            return
+        
+        # Get save location from user
+        from datetime import datetime
+        default_name = f"captions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Captions",
+            default_name,
+            "Text Files (*.txt);;SRT Subtitle (*.srt);;All Files (*)"
+        )
+        
+        if not filepath:
+            return  # User cancelled
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                if filepath.endswith('.srt'):
+                    # Export as SRT format
+                    for i, caption in enumerate(self._caption_history, 1):
+                        if caption and caption != "♪ ♪ ♪":
+                            f.write(f"{i}\n")
+                            f.write(f"00:00:{i:02d},000 --> 00:00:{i+1:02d},000\n")
+                            f.write(f"{caption}\n\n")
+                else:
+                    # Export as plain text
+                    for caption in self._caption_history:
+                        if caption:  # Skip empty entries
+                            f.write(f"{caption}\n")
+            
+            QMessageBox.information(
+                self,
+                "Export Complete",
+                f"Captions exported to:\n{filepath}"
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"Failed to export captions:\n{str(e)}"
+            )
 
     def closeEvent(self, event):
         """Handle window close."""

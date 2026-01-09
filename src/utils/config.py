@@ -6,6 +6,29 @@ from pathlib import Path
 from typing import Any, Optional
 
 
+# Quality profile presets
+QUALITY_PROFILES = {
+    "fast": {
+        "whisper_beam_size": 1,
+        "whisper_best_of": 1,
+        "audio.chunk_duration": 2.0,
+        "description": "Fastest response, lower accuracy. Best for live conversations.",
+    },
+    "balanced": {
+        "whisper_beam_size": 3,
+        "whisper_best_of": 2,
+        "audio.chunk_duration": 3.0,
+        "description": "Good balance of speed and accuracy. Recommended for most use.",
+    },
+    "accurate": {
+        "whisper_beam_size": 5,
+        "whisper_best_of": 3,
+        "audio.chunk_duration": 4.0,
+        "description": "Highest accuracy, slower response. Best for important recordings.",
+    },
+}
+
+
 class Config:
     """Manages application configuration with JSON storage."""
 
@@ -14,15 +37,23 @@ class Config:
         "translation_mode": "auto",  # transcribe_only, ollama, auto
         "target_language": "English",
         "whisper_model": "small",  # tiny, base, small, medium, large-v3
+        "whisper_backend": "faster-whisper",  # faster-whisper, mlx
         "ollama_model": "llama3.2",
         "ollama_host": "http://localhost:11434",
         "device": "auto",  # auto, cpu, cuda
+        
+        # Whisper accuracy settings
+        "whisper_beam_size": 3,  # 1-5, higher = more accurate but slower
+        "whisper_best_of": 2,  # Number of candidates to consider
+        
+        # Quality profile: fast, balanced, accurate
+        "quality_profile": "balanced",
 
         # Audio settings
         "audio_device": None,  # None = auto-detect BlackHole
         "audio": {
             "sample_rate": 44100,
-            "chunk_duration": 2.0,
+            "chunk_duration": 3.0,
             "silence_threshold": 100,
         },
 
@@ -105,3 +136,24 @@ class Config:
     def to_dict(self) -> dict:
         """Return config as dictionary."""
         return self._config.copy()
+    
+    def apply_quality_profile(self, profile_name: str) -> None:
+        """Apply a quality profile preset.
+        
+        Args:
+            profile_name: One of 'fast', 'balanced', 'accurate'
+        """
+        if profile_name not in QUALITY_PROFILES:
+            return
+        
+        profile = QUALITY_PROFILES[profile_name]
+        for key, value in profile.items():
+            if key != "description":  # Skip the description field
+                self.set(key, value)
+        
+        self.set("quality_profile", profile_name)
+    
+    @staticmethod
+    def get_quality_profiles() -> dict:
+        """Return available quality profiles."""
+        return QUALITY_PROFILES

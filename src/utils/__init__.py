@@ -1,3 +1,3 @@
-from .config import Config
+from .config import Config, QUALITY_PROFILES
 
-__all__ = ["Config"]
+__all__ = ["Config", "QUALITY_PROFILES"]

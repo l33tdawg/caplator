@@ -4,6 +4,7 @@ pyqt6>=6.6.0
 # Audio Processing
 sounddevice>=0.4.0
 numpy>=1.24.0
+scipy>=1.10.0             # High-quality audio resampling
 
 # Local AI (100% free, runs on your machine)
 faster-whisper>=1.0.0    # Fast local speech-to-text (works on all platforms)

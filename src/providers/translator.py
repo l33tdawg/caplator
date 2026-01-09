@@ -222,8 +222,16 @@ class Translator(BaseProvider):
                     use_whisper_translate = False
                 elif self.translation_mode == "auto":
                     # Use Whisper's built-in translation if target is English
-                    use_whisper_translate = self.target_language.lower() in ["en", "english"]
-                    task = "translate" if use_whisper_translate else "transcribe"
+                    # NOTE: large-v3-turbo does NOT support translate task, only transcribe
+                    is_turbo = "turbo" in self.whisper_model_name.lower()
+                    if is_turbo:
+                        # Turbo model: always transcribe, use Ollama for translation
+                        task = "transcribe"
+                        use_whisper_translate = False
+                    else:
+                        # Standard models support Whisper's translate task
+                        use_whisper_translate = self.target_language.lower() in ["en", "english"]
+                        task = "translate" if use_whisper_translate else "transcribe"
                 else:
                     # Ollama mode: always transcribe first, then translate with Ollama
                     task = "transcribe"

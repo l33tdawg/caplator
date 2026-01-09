@@ -151,6 +151,8 @@ Edit `config.json` or use the Settings dialog:
 
 **New: large-v3-turbo** - Released by OpenAI in late 2024, this model offers near-best accuracy at 8x the speed of large-v3, with only half the memory requirements (~6GB VRAM vs ~10GB). It's the sweet spot for users who want high quality without the slowdown of large-v3.
 
+**Note:** The turbo model only supports transcription, not Whisper's built-in translation. When using turbo with non-English audio, translation is handled by Ollama (requires Ollama to be running).
+
 ### Chunk Duration
 
 | Duration | Latency | Accuracy | Feel |

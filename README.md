@@ -144,9 +144,12 @@ Edit `config.json` or use the Settings dialog:
 |-------|------|-------|----------|----------------|
 | `tiny` | 75MB | Fastest | Low | Low-end hardware |
 | `base` | 145MB | Fast | Medium | Good balance |
-| **`small`** | 488MB | Medium | High | **Recommended** |
+| **`small`** | 488MB | Medium | High | **Default** |
 | `medium` | 1.5GB | Slow | Very High | High accuracy |
-| `large-v3` | 3GB | Slowest | Best | Best accuracy (GPU) |
+| `large-v3` | 3GB | Slowest | Best | Best accuracy (needs GPU) |
+| **`large-v3-turbo`** | 809MB | Fast | Near-best | **Recommended for quality** |
+
+**New: large-v3-turbo** - Released by OpenAI in late 2024, this model offers near-best accuracy at 8x the speed of large-v3, with only half the memory requirements (~6GB VRAM vs ~10GB). It's the sweet spot for users who want high quality without the slowdown of large-v3.
 
 ### Chunk Duration
 
@@ -159,8 +162,8 @@ Edit `config.json` or use the Settings dialog:
 
 ### Whisper Backend
 
-- `faster-whisper` - **Default**, works on all platforms
-- `mlx` - Optimized for Apple Silicon (M1/M2/M3), experimental
+- `faster-whisper` - **Recommended**, works on all platforms, very stable
+- `mlx` - Apple Silicon only, known to cause crashes - NOT RECOMMENDED
 
 ## Smart Features
 
@@ -294,6 +297,11 @@ MIT License - Use freely!
 - [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) - GUI framework
 
 ## Changelog
+
+### v1.2.0 (2026-01-09)
+- Added Whisper large-v3-turbo model support (8x faster than large-v3, near-best accuracy)
+- Updated MLX backend warnings (known crash issues, not recommended)
+- Documentation improvements for model selection
 
 ### v1.1.0 (2026-01-09)
 - Added quality profiles (Fast/Balanced/Accurate)

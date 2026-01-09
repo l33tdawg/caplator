@@ -1,10 +1,14 @@
 {
-  "translation_mode": "ollama",
+  "translation_mode": "auto",
   "target_language": "English",
   "whisper_model": "small",
-  "ollama_model": "llama3:latest",
+  "whisper_backend": "faster-whisper",
+  "ollama_model": "llama3.2:latest",
   "ollama_host": "http://localhost:11434",
   "device": "auto",
+  "whisper_beam_size": 3,
+  "whisper_best_of": 2,
+  "quality_profile": "balanced",
   "audio_device": null,
   "audio": {
     "sample_rate": 44100,
@@ -15,13 +19,12 @@
     "opacity": 1.0,
     "font_size": 24,
     "position": {
-      "x": 437,
-      "y": 594
+      "x": 604,
+      "y": 388
     },
     "size": {
-      "width": 600,
-      "height": 150
+      "width": 764,
+      "height": 297
     }
-  },
-  "whisper_backend": "faster-whisper"
+  }
 }

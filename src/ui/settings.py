@@ -40,6 +40,7 @@ class SettingsDialog(QDialog):
         ("small", "Small (~488MB) - Balanced (recommended)"),
         ("medium", "Medium (~1.5GB) - High accuracy, slower"),
         ("large-v3", "Large-v3 (~3GB) - Best accuracy, needs GPU"),
+        ("large-v3-turbo", "Large-v3-Turbo (~809MB) - Near-best accuracy, 8x faster than large-v3"),
     ]
 
     def __init__(self, config, parent=None):
@@ -107,10 +108,10 @@ class SettingsDialog(QDialog):
 
         self.whisper_backend = QComboBox()
         self.whisper_backend.addItem("faster-whisper (Stable, recommended)", "faster-whisper")
-        self.whisper_backend.addItem("MLX (Apple Silicon, may crash)", "mlx")
+        self.whisper_backend.addItem("MLX (Apple Silicon, unstable - use at own risk)", "mlx")
         self.whisper_backend.setToolTip(
             "faster-whisper: Works on all platforms, very stable - RECOMMENDED\n"
-            "MLX: Optimized for Apple Silicon (M1/M2/M3/M4), faster but may crash"
+            "MLX: Optimized for Apple Silicon but known to cause crashes - NOT RECOMMENDED"
         )
         self.whisper_backend.currentIndexChanged.connect(self._on_backend_changed)
         whisper_layout.addRow("Backend:", self.whisper_backend)
@@ -202,7 +203,7 @@ class SettingsDialog(QDialog):
             "<div style='text-align: center;'>"
             "<p style='font-size: 16px; font-weight: bold; color: #333; margin-bottom: 4px;'>"
             "Real-Time Audio Translator</p>"
-            "<p style='font-size: 11px; color: #888; margin-bottom: 12px;'>Version 1.1.0</p>"
+            "<p style='font-size: 11px; color: #888; margin-bottom: 12px;'>Version 1.2.0</p>"
             "<p style='font-size: 12px; color: #4CAF50; font-weight: 500; margin-bottom: 12px;'>"
             "100% local • 100% free • 100% private</p>"
             "<p style='font-size: 11px; color: #666; margin-bottom: 16px;'>"
@@ -292,16 +293,16 @@ class SettingsDialog(QDialog):
         backend = self.whisper_backend.currentData()
         
         if backend == "mlx":
-            # Check if MLX is available
+            # Check if MLX is available - but warn strongly against using it
             try:
                 import mlx_whisper
-                self.whisper_status.setText("⚠ MLX available but may crash. Use faster-whisper for stability.")
-                self.whisper_status.setStyleSheet("color: #FF9800; font-size: 11px;")
+                self.whisper_status.setText("⚠ MLX is known to crash. Strongly recommend faster-whisper instead.")
+                self.whisper_status.setStyleSheet("color: #f44336; font-size: 11px;")
                 # MLX doesn't support device selection
                 self.device.setEnabled(False)
                 self.device.setToolTip("MLX automatically uses Apple Silicon GPU")
             except ImportError:
-                self.whisper_status.setText("⚠ MLX not installed. Run: pip install mlx-whisper")
+                self.whisper_status.setText("⚠ MLX not installed (and not recommended). Use faster-whisper.")
                 self.whisper_status.setStyleSheet("color: #f44336; font-size: 11px;")
                 self.device.setEnabled(False)
         else:

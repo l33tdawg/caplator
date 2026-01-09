@@ -32,6 +32,7 @@ class Translator(BaseProvider):
     - small: Recommended balance of speed and accuracy
     - medium: High accuracy, needs decent CPU or GPU
     - large-v3: Best accuracy, recommended only with GPU
+    - large-v3-turbo: Near-best accuracy at 8x speed of large-v3 (recommended for quality)
     """
 
     # Default cache directory for Whisper models
@@ -54,7 +55,7 @@ class Translator(BaseProvider):
 
         Args:
             target_language: Language to translate into
-            whisper_model: Whisper model size (tiny, base, small, medium, large-v3)
+            whisper_model: Whisper model size (tiny, base, small, medium, large-v3, large-v3-turbo)
             whisper_backend: Which Whisper implementation (auto, mlx, faster-whisper)
                             - mlx: Fastest on Apple Silicon (M1/M2/M3)
                             - faster-whisper: Good on all platforms

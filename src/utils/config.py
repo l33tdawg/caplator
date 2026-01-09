@@ -36,7 +36,7 @@ class Config:
         # Translation settings
         "translation_mode": "auto",  # transcribe_only, ollama, auto
         "target_language": "English",
-        "whisper_model": "small",  # tiny, base, small, medium, large-v3, large-v3-turbo
+        "whisper_model": "large-v3-turbo",  # tiny, base, small, medium, large-v3, large-v3-turbo
         "whisper_backend": "faster-whisper",  # faster-whisper, mlx
         "ollama_model": "llama3.2",
         "ollama_host": "http://localhost:11434",

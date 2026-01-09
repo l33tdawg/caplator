@@ -1,7 +1,7 @@
 {
   "translation_mode": "auto",
   "target_language": "English",
-  "whisper_model": "large-v3-turbo",
+  "whisper_model": "small",
   "whisper_backend": "faster-whisper",
   "ollama_model": "llama3.2:latest",
   "ollama_host": "http://localhost:11434",

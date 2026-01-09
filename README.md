@@ -125,7 +125,7 @@ Edit `config.json` or use the Settings dialog:
 ```json
 {
   "target_language": "English",
-  "whisper_model": "large-v3-turbo",
+  "whisper_model": "small",
   "whisper_backend": "faster-whisper",
   "quality_profile": "balanced",
   "whisper_beam_size": 3,
@@ -144,10 +144,10 @@ Edit `config.json` or use the Settings dialog:
 |-------|------|-------|----------|----------------|
 | `tiny` | 75MB | Fastest | Low | Low-end hardware |
 | `base` | 145MB | Fast | Medium | Quick testing |
-| `small` | 488MB | Medium | High | Lower memory systems |
+| **`small`** | 488MB | Medium | High | **Default - good balance** |
 | `medium` | 1.5GB | Slow | Very High | High accuracy |
 | `large-v3` | 3GB | Slowest | Best | Absolute best (needs GPU) |
-| **`large-v3-turbo`** | 809MB | Fast | Near-best | **Default - best quality/speed** |
+| `large-v3-turbo` | 809MB | Fast | Near-best | Best quality (transcription only) |
 
 **New: large-v3-turbo** - Released by OpenAI in late 2024, this model offers near-best accuracy at 8x the speed of large-v3, with only half the memory requirements (~6GB VRAM vs ~10GB). It's the sweet spot for users who want high quality without the slowdown of large-v3.
 
@@ -302,7 +302,7 @@ MIT License - Use freely!
 
 ### v1.2.0 (2026-01-09)
 - Added Whisper large-v3-turbo model support (8x faster than large-v3, near-best accuracy)
-- Made large-v3-turbo the default model (best quality/speed balance)
+- Note: turbo only supports transcription, not translation (uses Ollama for translation)
 - Updated MLX backend warnings (known crash issues, not recommended)
 - Documentation improvements for model selection
 
